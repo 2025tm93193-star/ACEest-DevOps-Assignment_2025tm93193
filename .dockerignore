@@ -8,7 +8,6 @@ instance
 *.sqlite3
 *.db
 *.pdf
-instructor_versions
 README.md
 docs
 .env

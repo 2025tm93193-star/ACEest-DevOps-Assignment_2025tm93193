@@ -254,13 +254,13 @@ def report_pdf(client_id):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 12, "ACEest Fitness & Gym - Client Report", ln=1)
+    pdf.cell(0, 12, "ACEest Fitness & Gym - Client Report",new_x="LMARGIN",new_y="NEXT")
     pdf.set_font("Helvetica", size=11)
     # Built-in PDF fonts are Latin-1 only; replace unsupported characters.
     for field in ("id", "name", "age", "height", "weight", "program", "calories",
                   "target_weight", "target_adherence", "membership_status", "membership_end"):
         value = str(client[field]) if client[field] is not None else "N/A"
         line = f"{field.replace('_', ' ').title()}: {value}"
-        pdf.multi_cell(0, 8, line.encode("latin-1", errors="replace").decode("latin-1"))
+        pdf.multi_cell(0, 8, line.encode("latin-1", errors="replace").decode("latin-1"), new_x="LMARGIN", new_y="NEXT")
     return send_file(BytesIO(bytes(pdf.output())), mimetype="application/pdf",
                      as_attachment=True, download_name=f"aceest-client-{client_id}.pdf")

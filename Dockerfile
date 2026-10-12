@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY aceest ./aceest
 COPY app.py .
 COPY tests ./tests
+COPY instructor_versions ./instructor_versions
 
 RUN groupadd -r aceest && useradd -r -g aceest aceest \
     && mkdir -p /app/instance \
