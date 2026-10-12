@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ACEest Fitness & Gym</title>
+  <style>
+    :root {font-family: system-ui, Arial, sans-serif; color-scheme: dark; background: #0e1422; color: #f3f6ff;}
+    body {margin: 0; line-height: 1.5;} header {padding: 26px max(16px, calc((100% - 1060px)/2)); background: #17213a; border-bottom: 1px solid #263755;}
+    header p {margin: 3px 0; color: #b8c7e6;} h1{margin:0;font-size:1.8rem;} h2{margin-top:0;color:#e4ecff;font-size:1.2rem;}
+    main {margin: 26px auto; padding: 0 16px; max-width: 1060px; display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:16px;}
+    section{background:#17213a;border:1px solid #2a3a57;border-radius:12px;padding:22px;min-width:0;}
+    label{display:block;color:#c6d2ec;font-size:.9rem;margin:10px 0 5px;}
+    input,select,button{box-sizing:border-box;width:100%;padding:10px;border-radius:7px;border:1px solid #4a5a76;background:#0e1422;color:#fff;font-size:1rem;}
+    button{margin-top:12px;cursor:pointer;background:#d3ae5b;color:#111;border:0;font-weight:700;}
+    button:hover{background:#eec77a;} small,.muted{color:#b8c7e6;} pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#101a2a;padding:12px;border-radius:7px;max-height:210px;overflow:auto;}
+    #message{grid-column:1/-1;background:#24344e;border-radius:8px;padding:12px;min-height:20px;} a{color:#ffe2a5;}
+    @media(max-width:710px){main{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <header><h1>ACEest Fitness & Gym</h1><p>Flask + SQLite | Automated testing & Docker CI/CD demonstration</p></header>
+  <main>
+    <section>
+      <h2>Add a client</h2>
+      <form id="client-form">
+        <label for="name">Name</label><input id="name" name="name" required placeholder="e.g. Asha" />
+        <label for="age">Age (optional)</label><input id="age" name="age" type="number" min="1" max="120" />
+        <label for="weight">Weight in kg (optional)</label><input id="weight" name="weight" type="number" min="1" max="500" step="0.1" />
+        <button type="submit">Save client</button>
+      </form>
+    </section>
+    <section>
+      <h2>Clients</h2>
+      <label for="client">Select client</label><select id="client"><option value="">Loading...</option></select>
+      <pre id="profile">Select a client to see profile.</pre>
+      <a id="report" href="#" hidden>Download PDF client report</a>
+    </section>
+    <section>
+      <h2>Fitness program</h2>
+      <label for="goal">Goal</label><select id="goal"><option>Fat Loss</option><option>Muscle Gain</option><option>Beginner</option></select>
+      <button id="generate">Generate template program</button>
+      <small>Uses randomly selected instructor-provided templates; not AI or medical advice.</small>
+      <pre id="program-output">No program generated.</pre>
+    </section>
+    <section>
+      <h2>Weekly adherence</h2>
+      <form id="progress-form">
+        <label for="week">Week</label><input id="week" required placeholder="2026-W41" />
+        <label for="adherence">Adherence (%)</label><input id="adherence" required type="number" min="0" max="100" />
+        <button type="submit">Save weekly progress</button>
+      </form>
+      <pre id="progress-output">No progress saved.</pre>
+    </section>
+    <section>
+      <h2>Add workout</h2>
+      <form id="workout-form">
+        <label for="workout-date">Date</label><input id="workout-date" type="date" required />
+        <label for="workout-type">Type</label><select id="workout-type"><option>Strength</option><option>Hypertrophy</option><option>Cardio</option><option>Mobility</option></select>
+        <label for="duration">Duration (minutes)</label><input id="duration" type="number" min="1" max="1440" value="45" required />
+        <button type="submit">Log workout</button>
+      </form>
+    </section>
+    <section>
+      <h2>Workout history</h2><pre id="workout-output">No workouts.</pre>
+      <small>API also supports exercises, body metrics and membership updates.</small>
+    </section>
+    <div id="message" role="status">Ready.</div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const selectedId = () => $('client').value;
+    const show = msg => { $('message').textContent = msg; };
+    async function api(path, options={}) {
+      const res = await fetch(path, {headers:{'Content-Type':'application/json'}, ...options});
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      return body;
+    }
+    const post = (path, data) => api(path,{method:'POST',body:JSON.stringify(data)});
+    const requireClient = () => { if (!selectedId()) throw new Error('Please select a client first.'); return selectedId(); };
+    const display = (id, object) => { $(id).textContent = JSON.stringify(object,null,2); };
+    async function reloadClients(newId) {
+      const clients = await api('/api/clients');
+      const previous = String(newId || selectedId());
+      $('client').replaceChildren();
+      const blank = new Option('Select client', ''); $('client').add(blank);
+      clients.forEach(x => $('client').add(new Option(`${x.name} (#${x.id})`, x.id)));
+      if (clients.some(x => String(x.id) === previous)) $('client').value = previous;
+      await loadClient();
+    }
+    async function loadClient() {
+      if (!selectedId()) { $('profile').textContent='Select a client.'; $('report').hidden=true; return; }
+      const id=selectedId();
+      const [profile, progress, workouts] = await Promise.all([
+        api(`/api/clients/${id}`),api(`/api/clients/${id}/progress`),api(`/api/clients/${id}/workouts`)
+      ]);
+      display('profile', profile); display('progress-output', progress);display('workout-output', workouts);
+      $('report').href=`/api/clients/${id}/report.pdf`; $('report').hidden=false;
+    }
+    $('client').addEventListener('change', () => loadClient().catch(e=>show(e.message)));
+    $('client-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        const body={name:$('name').value};
+        if ($('age').value) body.age=Number($('age').value);
+        if ($('weight').value) body.weight=Number($('weight').value);
+        const created=await post('/api/clients',body);
+        $('client-form').reset(); await reloadClients(created.id); show('Client saved successfully.');
+      } catch(err) {show(err.message);}
+    });
+    $('generate').addEventListener('click',async()=>{
+      try { const id=requireClient(); const result=await post(`/api/clients/${id}/program`,{goal:$('goal').value});
+        display('program-output',result);await loadClient();show('Template program assigned.'); }
+      catch(err){show(err.message);}
+    });
+    $('progress-form').addEventListener('submit',async e=>{
+      e.preventDefault();
+      try {const id=requireClient(); await post(`/api/clients/${id}/progress`,{week:$('week').value,adherence:Number($('adherence').value)});
+        await loadClient();show('Weekly progress recorded.');}
+      catch(err){show(err.message);}
+    });
+    $('workout-date').value=new Date().toLocaleDateString('en-CA');
+    $('workout-form').addEventListener('submit',async e=>{
+      e.preventDefault();
+      try {const id=requireClient();await post(`/api/clients/${id}/workouts`,{date:$('workout-date').value,workout_type:$('workout-type').value,duration_min:Number($('duration').value)});
+        await loadClient();show('Workout recorded.');}
+      catch(err){show(err.message);}
+    });
+    reloadClients().catch(e => show(e.message));
+  </script>
+</body></html>

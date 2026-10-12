@@ -1,0 +1,39 @@
+name: ACEest CI - lint, test and Docker
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Syntax / compilation checks
+        run: python -m compileall -q app.py aceest tests instructor_versions
+
+      - name: Static checks
+        run: ruff check app.py aceest tests
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+      - name: Build Docker image
+        run: docker build -t aceest-fitness:${{ github.sha }} .
+
+      - name: Run tests inside Docker container
+        run: docker run --rm --entrypoint python aceest-fitness:${{ github.sha }} -m pytest -q

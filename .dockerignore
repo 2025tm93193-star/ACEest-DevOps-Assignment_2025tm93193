@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+__pycache__
+.pytest_cache
+.ruff_cache
+instance
+*.sqlite3
+*.db
+*.pdf
+instructor_versions
+README.md
+docs
+.env
+.DS_Store
