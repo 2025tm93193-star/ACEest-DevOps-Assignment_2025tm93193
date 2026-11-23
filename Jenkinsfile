@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -7,6 +8,7 @@ pipeline {
         stage('Checkout from GitHub') {
             steps { checkout scm }
         }
+
         stage('Verify build prerequisites') {
             steps {
                 sh 'python3 --version'
@@ -14,6 +16,7 @@ pipeline {
                 sh 'docker info >/dev/null'
             }
         }
+
         stage('Python build and lint') {
             steps {
                 sh 'python3 -m venv .venv'
@@ -22,20 +25,47 @@ pipeline {
                 sh '. .venv/bin/activate && ruff check app.py aceest tests'
             }
         }
+
         stage('Pytest') {
-            steps { sh '. .venv/bin/activate && python -m pytest -q' }
+            steps {
+                sh '. .venv/bin/activate && python -m pytest -q'
+            }
         }
+
         stage('Build Docker image') {
-            steps { sh 'docker build -t aceest-fitness:jenkins .' }
+            steps {
+                sh 'docker build -t aceest-fitness:jenkins .'
+            }
         }
+
         stage('Test Docker image') {
             steps {
                 sh 'docker run --rm --entrypoint python aceest-fitness:jenkins -m pytest -q'
             }
         }
+
+        stage('Tag Image for Local Registry') {
+            steps {
+                sh "docker tag aceest-fitness:jenkins localhost:5000/aceest-fitness:${BUILD_NUMBER}"
+                sh 'docker tag aceest-fitness:jenkins localhost:5000/aceest-fitness:latest'
+            }
+        }
+
+        stage('Push Image to Local Registry') {
+            steps {
+                sh "docker push localhost:5000/aceest-fitness:${BUILD_NUMBER}"
+                sh 'docker push localhost:5000/aceest-fitness:latest'
+            }
+        }
     }
+
     post {
-        success { echo 'ACEest BUILD and tests PASSED' }
-        failure { echo 'ACEest BUILD FAILED: inspect Console Output' }
+        success {
+            echo 'ACEest BUILD, TESTS and REGISTRY PUSH PASSED'
+        }
+        failure {
+            echo 'ACEest PIPELINE FAILED: inspect Console Output'
+        }
     }
 }
+
